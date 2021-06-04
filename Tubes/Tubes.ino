@@ -10,8 +10,15 @@ boolean lockLow = true;
 boolean takeLowTime;
 int PIRValue = 0;
 
-// Update these with values suitable for your network.
+  
+int A0Pin = A0;
 
+
+
+int lightIntensityThres =80;
+int reading , bright ;
+
+// Update these with values suitable for your network.
 const char* ssid =         "azmi";
 const char* password =    "passwordbaru000";
 const char* mqtt_server = "192.168.0.113";   /// example 192.168.0.19
@@ -25,6 +32,7 @@ int value = 0;
 void setup() {
   pinMode(ledPin, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
   pinMode(pirPIN, INPUT);
+  pinMode(A0Pin, INPUT);
   Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -51,7 +59,20 @@ void setup_wifi() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 }
+void photodiode() {
+  reading=analogRead(A0Pin);
 
+  if(reading > lightIntensityThres) {
+      map(reading,0,lightIntensityThres,0,255);
+      String readd= String(reading);
+      const char* convertedRead = readd.c_str();
+      snprintf (msg, 75, convertedRead,value);
+      Serial.print("Publish message for PhotoResistor: ");
+      Serial.println(msg);
+      client.publish("event/detectphotoresistor", msg);
+      delay(1000);}
+
+  }
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -89,9 +110,9 @@ void reconnect() {
     if (client.connect(clientIds.c_str())) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("event/detectPIR", "hello world,Connected");
+      client.publish("event/hello", "hello world,Connected");
       // ... and resubscribe
-      client.subscribe("event/detectPIR");
+      client.subscribe("event/hello");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -111,7 +132,7 @@ void loop() {
 
   long now = millis();
   long lastMsg = 0;
-
+    photodiode();
     if(digitalRead(pirPIN) == HIGH) {
 
     if(lockLow) {
@@ -150,4 +171,5 @@ void loop() {
         }
     
   }
+  delay(1000);
 }
