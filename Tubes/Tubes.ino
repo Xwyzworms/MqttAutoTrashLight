@@ -2,20 +2,22 @@
 #include <PubSubClient.h>
 #define pirPIN 16
 #define ledPin 5
+#define relayPin 4
+#define potentioPin 0
+#define photoResistorPin 12
 
 int calibrationTime = 30;
 long unsigned int lowIn;
 long unsigned int pause = 500;
 boolean lockLow = true;
 boolean takeLowTime;
-int PIRValue = 0;
 
+int potentioValue; 
   
 int A0Pin = A0;
 
 
-
-int lightIntensityThres =80;
+int lightIntensityThres =70;
 int reading , bright ;
 
 // Update these with values suitable for your network.
@@ -32,7 +34,10 @@ int value = 0;
 void setup() {
   pinMode(ledPin, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
   pinMode(pirPIN, INPUT);
-  pinMode(A0Pin, INPUT);
+  pinMode(photoResistorPin, INPUT);
+  pinMode(potentioPin,INPUT);
+  pinMode(relayPin, OUTPUT);
+  
   Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -60,19 +65,22 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 void photodiode() {
-  reading=analogRead(A0Pin);
+  reading=analogRead(A0);
 
   if(reading > lightIntensityThres) {
-      map(reading,0,lightIntensityThres,0,255);
+      map(reading,0,1023,0,255);
       String readd= String(reading);
       const char* convertedRead = readd.c_str();
       snprintf (msg, 75, convertedRead,value);
       Serial.print("Publish message for PhotoResistor: ");
       Serial.println(msg);
       client.publish("event/detectphotoresistor", msg);
-      delay(1000);}
 
   }
+
+}
+  
+  
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -132,34 +140,52 @@ void loop() {
 
   long now = millis();
   long lastMsg = 0;
-    photodiode();
+   
+    Serial.print("Pirpin: ");
+    Serial.println(digitalRead(pirPIN));
     if(digitalRead(pirPIN) == HIGH) {
-
-    if(lockLow) {
-      PIRValue = 1;
-      lockLow= false;
+       photodiode();
       Serial.println("Motion Deteced");
-      digitalWrite(ledPin,1);
+      potentioValue = analogRead(potentioPin);
+      potentioValue = map(potentioValue, 0, 1023, 0, 255);
+      Serial.print("Potentio val :");
+      Serial.println(potentioValue);
+      if(potentioValue > 100) {
+        String readdPotentio= String(potentioValue);
+        const char* convertedReadPotentio = readdPotentio.c_str();
+        snprintf (msg, 75, convertedReadPotentio,value);
+        Serial.print("Publish message for Potentio: ");
+        Serial.println(msg);
+        client.publish("event/potentioMeter", msg);
+        digitalWrite(ledPin,1);
+        
+        
+      }
+      else {
+        String readdPotentio= String(potentioValue);
+        const char* convertedReadPotentio = readdPotentio.c_str();
+        snprintf (msg, 75, convertedReadPotentio,value);
+        Serial.print("Publish message for Potentio: ");
+        Serial.println(msg);
+        client.publish("event/potentioMeter", msg);
+        analogWrite(ledPin,potentioValue);
+        }
+      
+      digitalWrite(relayPin,0);
       ++value;
       snprintf (msg, 75, "1", value);
       Serial.print("Publish message: ");
       Serial.println(msg);
       client.publish("event/detectPIR", msg);
       delay(50);    
-      
-      }
-      takeLowTime = true;
+   
     }
     
   if(digitalRead(pirPIN) == LOW) {
-    if(takeLowTime) {
-      lowIn = millis();
-      takeLowTime = false;
-      }
-      if(!lockLow && millis() - lowIn > pause) {
-        PIRValue = 0;
+        
         lockLow =true;
         digitalWrite(ledPin,0);
+        digitalWrite(relayPin,1);
         Serial.println("Motion Ended");
         delay(50);
      
@@ -170,6 +196,6 @@ void loop() {
         client.publish("event/detectPIR", msg);
         }
     
-  }
-  delay(1000);
+  
+  delay(5000);
 }
