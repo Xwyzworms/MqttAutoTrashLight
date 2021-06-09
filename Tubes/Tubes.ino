@@ -6,7 +6,7 @@
 #define ledPin 5
 #define relayPin 4
 #define potentioPin 0
-#define photoResistorPin 2
+
 
 
 int potentioValue; 
@@ -36,7 +36,6 @@ void setup() {
   // Inisiasi Seluruh pin yang digunakan dan koneksi 
   pinMode(ledPin, OUTPUT);     
   pinMode(pirPIN, INPUT);
-  pinMode(photoResistorPin, INPUT);
   pinMode(potentioPin,INPUT);
   pinMode(relayPin, OUTPUT);
   Serial.begin(115200);
@@ -66,7 +65,7 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-void photodiode() {
+void photoresistor() {
   // Method ini digunakan untuk membaca sensor photoresistor dan melakukan publish kepada broker
   reading=analogRead(potentioPin);
 
@@ -74,7 +73,7 @@ void photodiode() {
       map(reading,0,1023,0,255); // MApping value
       String readd= String(reading); // Konversi int ke String
       const char* convertedRead = readd.c_str(); // Mengubah ketipe char*
-      snprintf (msg, 75, convertedRead,value); // save char * kepada buffer
+      snprintf (msg, 75, convertedRead,value); // save char* kepada buffer
       //Serial.println("Publish message for PhotoResistor: ");
       client.publish("event/detectphotoresistor", msg); // Publish kepada topik event/detectphotoresistor
  
@@ -126,10 +125,7 @@ void reconnect() {
       client.publish("event/detectPIR", "hello world,Connected");
       // ... and resubscribe
       client.subscribe("event/detectRelayOutput");
-            
-      
-      
-      
+                  
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -148,7 +144,7 @@ void loop() {
   client.loop();
 
     if(digitalRead(pirPIN) == HIGH) {
-      photodiode();
+      photoresistor();
       delay(100);
       Serial.println("Motion Detected");
       potentioValue = analogRead(potentioPin);    
@@ -204,6 +200,6 @@ void loop() {
         snprintf (msg, 75,"No one Here",value);
         client.publish("event/detectRelayOutput",msg);
         }
-  callback;
+
   delay(5000);
 }
