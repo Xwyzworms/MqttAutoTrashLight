@@ -20,7 +20,8 @@ int reading , bright ;
 // Digunakan untuk inisiasi network
 const char* ssid =         "azmi";
 const char* password =    "passwordbaru000";
-const char* mqtt_server = "192.168.0.113";   /// Menggunakan alamat IP Laptop ini , dikarenakan telah terinstall mosquito
+const char* mqtt_server =  "test.mosquitto.org";
+//"192.168.0.113";   /// Menggunakan alamat IP Laptop ini , dikarenakan telah terinstall mosquito
 
 // Inisiasi Objects Wifi dan PubSub 
 WiFiClient espClient;
@@ -31,7 +32,9 @@ char msg[50];
 int value = 1;
 
 void setup() {
-  pinMode(ledPin, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
+
+  // Inisiasi Seluruh pin yang digunakan dan koneksi 
+  pinMode(ledPin, OUTPUT);     
   pinMode(pirPIN, INPUT);
   pinMode(photoResistorPin, INPUT);
   pinMode(potentioPin,INPUT);
@@ -43,7 +46,7 @@ void setup() {
 }
 
 void setup_wifi() {
-
+  // prosedure ini digunakan untuk melakukan koneksi ESP8266 kepada WiFi
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
@@ -62,23 +65,26 @@ void setup_wifi() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 }
+
 void photodiode() {
+  // Method ini digunakan untuk membaca sensor photoresistor dan melakukan publish kepada broker
   reading=analogRead(potentioPin);
 
   if(reading > lightIntensityThres) {
-      map(reading,0,1023,0,255);
-      String readd= String(reading);
-      const char* convertedRead = readd.c_str();
-      snprintf (msg, 75, convertedRead,value);
+      map(reading,0,1023,0,255); // MApping value
+      String readd= String(reading); // Konversi int ke String
+      const char* convertedRead = readd.c_str(); // Mengubah ketipe char*
+      snprintf (msg, 75, convertedRead,value); // save char * kepada buffer
       //Serial.println("Publish message for PhotoResistor: ");
-      client.publish("event/detectphotoresistor", msg);
-
+      client.publish("event/detectphotoresistor", msg); // Publish kepada topik event/detectphotoresistor
+ 
   }
 
 }
   
   
 void callback(char* topic, byte* payload, unsigned int length) {
+  // Method
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
@@ -88,19 +94,20 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 
   // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '0') {
+  if (strcmp((char*)payload, "No one Here") == 0 ){
      Serial.println("LOW");
      //digitalWrite(ledPin, LOW);  
-     Serial.println("Trash can currently Closed");
+     Serial.println("No One here !!");
+     client.publish("event/detectRelayOutput","No one Here!! ");
      
   } 
 
- if ((char)payload[0] == '1') {
+ if (strcmp((char*)payload, "Someone Here") == 0) {
     Serial.println("HIGH");
 
    // digitalWrite(ledPin,HIGH);
-    Serial.println("Trash can currently Open");
-    // Turn the LED off by making the voltage HIGH
+    Serial.println("Someone here !!");
+    client.publish("event/detectRelayOutput","Someone Here !!");
   }
 
 }
@@ -118,7 +125,7 @@ void reconnect() {
       // Once connected, publish an announcement...
       client.publish("event/detectPIR", "hello world,Connected");
       // ... and resubscribe
-      client.subscribe("event/detectPIR");
+      client.subscribe("event/detectRelayOutput");
             
       
       
@@ -156,6 +163,7 @@ void loop() {
         snprintf (msg, 75, convertedReadPotentio,value);
         //Serial.println("Publish message for Potentio: ");
         client.publish("event/potentioMeter", msg);
+
         delay(100);
         
         digitalWrite(ledPin,1);
@@ -176,6 +184,8 @@ void loop() {
       snprintf (msg, 75, "1", value);
       //Serial.println("Publish message for PIR: ");
       client.publish("event/detectPIR", msg);
+      snprintf (msg, 75,"Someone Here",value);
+      client.publish("event/detectRelayOutput",msg);
       delay(50);    
    
     }
@@ -190,7 +200,10 @@ void loop() {
         snprintf (msg, 75, "0", value);
         //Serial.println("Publish message for PIR: ");
         client.publish("event/detectPIR", msg);
+        
+        snprintf (msg, 75,"No one Here",value);
+        client.publish("event/detectRelayOutput",msg);
         }
-    
+  callback;
   delay(5000);
 }
